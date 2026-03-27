@@ -8,7 +8,7 @@
 
 //--- EA Identity
 #define EA_NAME          "GRID MASTER EA"
-#define EA_VERSION       "1.5.53"
+#define EA_VERSION       "1.5.56"
 #define EA_SHORT_NAME    "GM"
 #define EA_SYMBOL        _Symbol
 #define EA_AUTHOR        "Dev. by YaiMak"
@@ -390,6 +390,7 @@ struct EAConfig
    double Layer2_Target_Price;
    int    Layer2_TP_Grids;
    double Layer3_Ratio;
+   bool   Layer3_No_TP;        // true = ไม่ set TP ให้ L3 — ใช้ Trail SL อย่างเดียว (Run Trend)
    bool   Layer3_Use_TrailSL;
    int    Layer3_Trail_Grids;
    // TP Mode (persisted from .set file)

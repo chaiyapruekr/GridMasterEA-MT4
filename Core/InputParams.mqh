@@ -112,7 +112,8 @@ input double   Inp_Layer2_Ratio         = 0.30;  // Layer 2: Close ratio (0.3 = 
 input double   Inp_Layer2_Target_Price  = 0.0;   // Layer 2: Target price (0 = use grids)
 input int      Inp_Layer2_TP_Grids      = 5;     // Layer 2: TP distance in grids
 input double   Inp_Layer3_Ratio         = 0.20;  // Layer 3: Close ratio (0.2 = 20%)
-input bool     Inp_Layer3_Use_TrailSL   = false; // Layer 3: Enable trailing SL
+input bool     Inp_Layer3_No_TP         = false; // Layer 3: No fixed TP — Trail SL only (Run Trend mode)
+input bool     Inp_Layer3_Use_TrailSL   = false; // Layer 3: Enable trailing SL (ต้อง true ถ้าใช้ No_TP)
 input int      Inp_Layer3_Trail_Grids   = 1;     // Layer 3: Trail SL distance in grids
 
 //============================================================
@@ -308,6 +309,7 @@ void LoadConfig()
    g_Cfg.Layer2_Target_Price = Inp_Layer2_Target_Price;
    g_Cfg.Layer2_TP_Grids     = Inp_Layer2_TP_Grids;
    g_Cfg.Layer3_Ratio        = Inp_Layer3_Ratio;
+   g_Cfg.Layer3_No_TP        = Inp_Layer3_No_TP;
    g_Cfg.Layer3_Use_TrailSL  = Inp_Layer3_Use_TrailSL;
    g_Cfg.Layer3_Trail_Grids  = Inp_Layer3_Trail_Grids;
    g_Cfg.Use_Break_Even      = Inp_Use_Break_Even;

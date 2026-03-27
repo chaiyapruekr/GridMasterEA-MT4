@@ -1,9 +1,9 @@
 //+------------------------------------------------------------------+
 //|                                              GridMasterEA.mq4   |
-//|                    GRID MASTER EA v1.5.53 — MQL4 Port           |
+//|                    GRID MASTER EA v1.5.56 — MQL4 Port           |
 //|                       Copyright 2026, Private Trader            |
 //+------------------------------------------------------------------+
-// MQL4 port จาก MQL5 v1.5.53
+// MQL4 port จาก MQL5 v1.5.56
 // หลักการเปลี่ยนแปลง:
 //   - ลบ OnTrade() → ใช้ polling ใน OnTick() แทน (Dip Guard)
 //   - HistoryDealGetXxx → OrderSelect(MODE_HISTORY) ใน Orders.mqh
@@ -15,7 +15,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "Private Trader"
 #property link        ""
-#property version     "1.553"
+#property version     "1.556"
 #property description "GRID MASTER EA — XAUUSD Grid Trading System (MT4)"
 #property strict
 
@@ -108,6 +108,10 @@ int OnInit()
 
    if(MathAbs(g_Cfg.Layer1_Ratio + g_Cfg.Layer2_Ratio + g_Cfg.Layer3_Ratio - 1.0) > 0.001)
    { Log("ERROR","Adaptive TP ratios must sum to 1.0"); return INIT_FAILED; }
+
+   // Warning: Layer3_No_TP ต้องใช้คู่กับ Layer3_Use_TrailSL=true — ไม่งั้น L3 ไม่มีทางออก
+   if(g_Cfg.Layer3_No_TP && !g_Cfg.Layer3_Use_TrailSL)
+      Log("WARN","Layer3_No_TP=true but Layer3_Use_TrailSL=false — L3 positions จะไม่มีทางออก! กรุณาเปิด Layer3_Use_TrailSL");
 
    //--- Init subsystems
    if(!InitSymbolInfo())        return INIT_FAILED;
