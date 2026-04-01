@@ -160,13 +160,20 @@ git pull origin develop
 
 ---
 
-### Step 6 — Compile MT4
+### Step 6 — Build MT4 (ใช้ build.sh)
 
 ```bash
-"H:\Program Files (x86)\MetaTrader 4 EXNESS\metaeditor.exe" /compile:"H:\ClaudeCodeProject\GridMasterEA_MT4\GridMasterEA.mq4" /log
+cd H:/ClaudeCodeProject/GridMasterEA_MT4
+bash build.sh
 ```
 
-ตรวจสอบ `.ex4` timestamp อัปเดต = compile สำเร็จ (exit code 1 บน Windows = ปกติ)
+script จะ:
+1. อ่าน version จาก `Core/Defines.mqh` อัตโนมัติ
+2. ตรวจ `#property version` ใน `GridMasterEA.mq4` ตรงกับ `EA_VERSION` ไหม (ถ้าไม่ตรง → error พร้อมบอกวิธีแก้)
+3. Compile ผ่าน MetaEditor
+4. Copy output ไปที่ `dist/GridMasterEA_MT4_v{VERSION}.ex4`
+
+> **ถ้า MetaEditor อยู่ path อื่น** แก้ `METAEDITOR=` บรรทัดบนสุดของ `build.sh`
 
 ---
 

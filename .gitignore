@@ -2,3 +2,7 @@
 *.log
 *.tmp
 compile.log
+
+# dist/ — versioned build output (track เฉพาะ .ex4 ใน dist/)
+!dist/
+!dist/*.ex4
