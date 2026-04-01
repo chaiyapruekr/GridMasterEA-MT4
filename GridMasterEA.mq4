@@ -1,9 +1,9 @@
 //+------------------------------------------------------------------+
 //|                                              GridMasterEA.mq4   |
-//|                    GRID MASTER EA v1.5.56 — MQL4 Port           |
+//|                     GRID MASTER EA v2.0.4 — MQL4 Port           |
 //|                       Copyright 2026, Private Trader            |
 //+------------------------------------------------------------------+
-// MQL4 port จาก MQL5 v1.5.56
+// MQL4 port จาก MQL5 v2.0.4 (non-auth features only)
 // หลักการเปลี่ยนแปลง:
 //   - ลบ OnTrade() → ใช้ polling ใน OnTick() แทน (Dip Guard)
 //   - HistoryDealGetXxx → OrderSelect(MODE_HISTORY) ใน Orders.mqh
@@ -15,7 +15,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "Private Trader"
 #property link        ""
-#property version     "1.556"
+#property version     "2.004"
 #property description "GRID MASTER EA — XAUUSD Grid Trading System (MT4)"
 #property strict
 
@@ -70,16 +70,7 @@ int OnInit()
 
    Log("INFO", StringFormat("=== %s v%s initializing (MQL4) ===", EA_NAME, EA_VERSION));
 
-   //--- License check
-   if(IsExpired())
-   {
-      Log("ERROR", StringFormat("EA LICENSE EXPIRED. Contact: %s", EA_CONTACT));
-      Alert(EA_NAME + " LICENSE EXPIRED\nContact: " + EA_CONTACT);
-      return INIT_FAILED;
-   }
-   int daysLeft = DaysUntilExpiry();
-   if(daysLeft <= 30)
-      Log("WARN", StringFormat("License expires in %d days. Contact: %s", daysLeft, EA_CONTACT));
+   //--- License (v2.0.4 MT4 — no online auth, always proceed)
 
    //--- Validate
    if(g_Cfg.MagicNumber < 1)
@@ -259,8 +250,9 @@ void OnTick()
          if(g_EAStatus != EA_STATUS_DD_BREAKER)
          {
             g_EAStatus = EA_STATUS_DD_BREAKER;
-            SendAlert("DD Breaker triggered",
-                      StringFormat("DD=%.2f%% >= %.1f%%", ddNow, g_Cfg.DD_Breaker_Pct));
+            if(g_Cfg.DD_Breaker_Alert)
+               SendAlert("DD Breaker triggered",
+                         StringFormat("DD=%.2f%% >= %.1f%%", ddNow, g_Cfg.DD_Breaker_Pct));
          }
       }
       else if(g_EAStatus == EA_STATUS_DD_BREAKER)

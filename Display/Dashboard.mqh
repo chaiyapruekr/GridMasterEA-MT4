@@ -373,6 +373,7 @@ void UpdateDashboard()
       case EA_STATUS_ACTIVE:     st2="ACTIVE";     sc2=clrLime;      break;
       case EA_STATUS_SUSPENDED:  st2="SUSPENDED";  sc2=clrYellow;    break;
       case EA_STATUS_DD_BREAKER: st2="DD BREAKER"; sc2=clrOrangeRed; break;
+      case EA_STATUS_AUTH_FAIL:  st2="AUTH FAIL";  sc2=clrRed;       break;
       default:                   st2="IDLE";       sc2=clrGray;      break;
    }
    _SetTxt(PFX_DASH+"STA_V",st2); _SetClr(PFX_DASH+"STA_V",sc2);
@@ -382,28 +383,9 @@ void UpdateDashboard()
    color  cc=cs==0?clrLime     :cs==1?clrYellow    :clrRed;
    _SetTxt(PFX_DASH+"CAP_V",ct); _SetClr(PFX_DASH+"CAP_V",cc);
 
-   // License expiry
-   int daysLeft = DaysUntilExpiry();
-   if(daysLeft == 0)
-   {
-      _SetTxt(PFX_DASH+"EXP_V","EXPIRED (!)"); _SetClr(PFX_DASH+"EXP_V",clrRed);
-      _SetTxt(PFX_DASH+"CON_V",EA_CONTACT);    _SetClr(PFX_DASH+"CON_V",clrRed);
-   }
-   else if(daysLeft <= 7)
-   {
-      _SetTxt(PFX_DASH+"EXP_V",StringFormat("%dd left (!)",daysLeft)); _SetClr(PFX_DASH+"EXP_V",clrRed);
-      _SetTxt(PFX_DASH+"CON_V",EA_CONTACT); _SetClr(PFX_DASH+"CON_V",clrOrange);
-   }
-   else if(daysLeft <= 30)
-   {
-      _SetTxt(PFX_DASH+"EXP_V",StringFormat("%dd left",daysLeft)); _SetClr(PFX_DASH+"EXP_V",clrYellow);
-      _SetTxt(PFX_DASH+"CON_V",EA_CONTACT); _SetClr(PFX_DASH+"CON_V",clrYellow);
-   }
-   else
-   {
-      _SetTxt(PFX_DASH+"EXP_V","2026-12-31");  _SetClr(PFX_DASH+"EXP_V",clrLime);
-      _SetTxt(PFX_DASH+"CON_V","");             _SetClr(PFX_DASH+"CON_V",clrBlack);
-   }
+   // License (v2.0.4 MT4 — no online auth)
+   _SetTxt(PFX_DASH+"EXP_V","Licensed"); _SetClr(PFX_DASH+"EXP_V",clrLime);
+   _SetTxt(PFX_DASH+"CON_V","");         _SetClr(PFX_DASH+"CON_V",clrBlack);
 
 }
 

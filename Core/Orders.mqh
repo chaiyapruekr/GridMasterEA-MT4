@@ -219,8 +219,19 @@ void QueueSplitOrders(int gridLevel, bool isBuy, bool isManual=false)
    if(!PreOrderChecks(gridLevel, isBuy, isManual)) return;
 
    double actualLot = 0;
-   int    splits    = CalcSplitCount(gridLevel, isBuy, actualLot);
-   if(splits < 1) return;
+   int    splits;
+   if(isManual)
+   {
+      // Manual order: bypass catch-up lot logic — เปิด 1 × MinLot เสมอ
+      // (CalcSplitCount อาจ return 0 เมื่อ curLots > required ซึ่งบล็อก Manual Buy โดยไม่มี Alert)
+      splits    = 1;
+      actualLot = g_Cfg.Min_Lot_Size;
+   }
+   else
+   {
+      splits = CalcSplitCount(gridLevel, isBuy, actualLot);
+      if(splits < 1) return;
+   }
 
    int ot = isBuy ? OP_BUY : OP_SELL;
    for(int i = 1; i <= splits; i++)

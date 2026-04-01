@@ -150,6 +150,7 @@ input double   Inp_Min_Profit_Manual_Close  = 0.0;    // Min Profit for Manual C
 input string   _sep_risk        = "======== RISK MANAGEMENT ========"; // ---
 input bool     Inp_Use_DD_Breaker       = false;  // Use DD Breaker (stop on drawdown)
 input double   Inp_DD_Breaker_Pct       = 20.0;   // DD Breaker % (max drawdown to stop)
+input bool     Inp_DD_Breaker_Alert     = false;  // DD Breaker Alert (popup+push when triggered)
 input bool     Inp_Use_Spread_Filter    = false;  // Use Spread Filter
 input int      Inp_Max_Spread_Points    = 0;      // Max Spread Points (0 = disabled)
 input bool     Inp_Use_Dip_Guard        = true;   // Dip Guard -- wait Dip/Bounce after TP
@@ -325,6 +326,7 @@ void LoadConfig()
    // -- D. RISK MANAGEMENT --
    g_Cfg.Use_DD_Breaker      = Inp_Use_DD_Breaker;
    g_Cfg.DD_Breaker_Pct      = Inp_DD_Breaker_Pct;
+   g_Cfg.DD_Breaker_Alert    = Inp_DD_Breaker_Alert;
    g_Cfg.Use_Spread_Filter   = Inp_Use_Spread_Filter;
    g_Cfg.Max_Spread_Points   = Inp_Max_Spread_Points;
    g_Cfg.Use_Dip_Guard       = Inp_Use_Dip_Guard;
