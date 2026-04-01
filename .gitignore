@@ -3,6 +3,9 @@
 *.tmp
 compile.log
 
-# dist/ — versioned build output (track เฉพาะ .ex4 ใน dist/)
-!dist/
-!dist/*.ex4
+# dist/ — local build output เท่านั้น (ไม่ track ใน git)
+# แจกจ่าย .ex4 ผ่าน GitHub Releases แทน
+dist/
+
+# local machine config (อย่า commit)
+build.env
