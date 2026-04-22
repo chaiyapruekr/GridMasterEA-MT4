@@ -8,7 +8,7 @@
 
 //--- EA Identity
 #define EA_NAME          "GRID MASTER EA"
-#define EA_VERSION       "2.0.4"
+#define EA_VERSION       "2.0.10"
 #define EA_SHORT_NAME    "GM"
 #define EA_SYMBOL        _Symbol
 #define EA_AUTHOR        "Dev. by YaiMak"

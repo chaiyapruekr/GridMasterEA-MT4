@@ -319,6 +319,13 @@ void ApplySinglePipsTP(int filterType, double pips)
    for(int i=0;i<cnt;i++)
    {
       double tp=NormalizeDouble(arr[i].isBuy?arr[i].openPrice+dist:arr[i].openPrice-dist,_Digits);
+      // Safety: TP ต้องอยู่ถูกทิศทาง และเกิน current market price — ป้องกัน immediate execution
+      double refBuy  = MathMax(arr[i].openPrice, g_Price.ask);
+      double refSell = MathMin(arr[i].openPrice, g_Price.bid);
+      if( arr[i].isBuy  && tp>0.0 && tp<=refBuy)
+      { Log("WARN",StringFormat("SINGLE_PIPS BUY  #%d: tp=%.5f <= ref=%.5f — skipped",arr[i].ticket,tp,refBuy)); continue; }
+      if(!arr[i].isBuy && tp>0.0 && tp>=refSell)
+      { Log("WARN",StringFormat("SINGLE_PIPS SELL #%d: tp=%.5f >= ref=%.5f — skipped",arr[i].ticket,tp,refSell)); continue; }
       QueueItem q=BuildModifyItem(arr[i].ticket,arr[i].sl,tp); QueueAdd(q);
    }
 }
@@ -329,10 +336,12 @@ void ApplyCustomSLPrice(int filterType, double slPrice)
    for(int i=0;i<cnt;i++)
    {
       double sl=NormalizeDouble(slPrice,_Digits);
-      if(arr[i].isBuy  && sl>=arr[i].openPrice)
-      { Log("WARN",StringFormat("#%d SL(%.5f)>=Open(%.5f) BUY skipped",arr[i].ticket,sl,arr[i].openPrice)); continue; }
-      if(!arr[i].isBuy && sl<=arr[i].openPrice)
-      { Log("WARN",StringFormat("#%d SL(%.5f)<=Open(%.5f) SELL skipped",arr[i].ticket,sl,arr[i].openPrice)); continue; }
+      // ตรวจสอบ SL ไม่เกิน current market price (profit-lock allowed)
+      // BUY: SL < bid / SELL: SL > ask
+      if(arr[i].isBuy  && sl>=g_Price.bid)
+      { Log("WARN",StringFormat("#%d SL(%.5f)>=Bid(%.5f) BUY — skipped",arr[i].ticket,sl,g_Price.bid)); continue; }
+      if(!arr[i].isBuy && sl<=g_Price.ask)
+      { Log("WARN",StringFormat("#%d SL(%.5f)<=Ask(%.5f) SELL — skipped",arr[i].ticket,sl,g_Price.ask)); continue; }
       QueueItem q=BuildModifyItem(arr[i].ticket,sl,arr[i].tp); QueueAdd(q);
    }
 }

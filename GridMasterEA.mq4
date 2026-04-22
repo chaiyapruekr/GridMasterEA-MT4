@@ -1,9 +1,9 @@
 //+------------------------------------------------------------------+
 //|                                              GridMasterEA.mq4   |
-//|                     GRID MASTER EA v2.0.4 — MQL4 Port           |
+//|                     GRID MASTER EA v2.0.10 — MQL4 Port          |
 //|                       Copyright 2026, Private Trader            |
 //+------------------------------------------------------------------+
-// MQL4 port จาก MQL5 v2.0.4 (non-auth features only)
+// MQL4 port จาก MQL5 v2.0.10 (non-auth features only)
 // หลักการเปลี่ยนแปลง:
 //   - ลบ OnTrade() → ใช้ polling ใน OnTick() แทน (Dip Guard)
 //   - HistoryDealGetXxx → OrderSelect(MODE_HISTORY) ใน Orders.mqh
@@ -15,7 +15,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "Private Trader"
 #property link        ""
-#property version     "2.004"
+#property version     "2.010"
 #property description "GRID MASTER EA — XAUUSD Grid Trading System (MT4)"
 #property strict
 
@@ -263,7 +263,7 @@ void OnTick()
    // ── Price Trigger ──────────────────────────────────────────────────
    if(g_TrigBuyState == TRIG_ARMED && g_TrigBuyPrice > 0 && g_Price.ask <= g_TrigBuyPrice)
    {
-      int trigLvB = GetNearestGridLevel(g_Price.bid);
+      int trigLvB = GetNearestGridLevel(g_Price.ask);   // v2.0.7: BUY uses ask
       Log("INFO", StringFormat("Price Trigger BUY fired @ ask=%.5f (armed=%.5f)", g_Price.ask, g_TrigBuyPrice));
       QueueSplitOrders(trigLvB, true, true);
       g_TrigBuyState = TRIG_TRIGGERED;

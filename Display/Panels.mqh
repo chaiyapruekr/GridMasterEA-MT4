@@ -949,26 +949,31 @@ void HandleManualPanelClick(string nm)
    if(!g_ManInitialized||!g_Price.isValid) return;
    bool isBuyBtn  = (nm == PFX_MAN+"BTN_BUY");
    bool isSellBtn = (nm == PFX_MAN+"BTN_SELL");
-   if(!isBuyBtn && !isSellBtn) return;
-
-   // BL-11: Manual order — alert เมื่อ INSUFFICIENT
-   if(GetCapitalStatus() == 2)
-   {
-      string ac = AccountCurrency();   // MT4: AccountCurrency()
-      Alert(StringFormat(
-         "Capital INSUF \xB7 BLOCKED\n"
-         "Equity: %s %.2f  <  Required: %s %.2f\n"
-         "Please deposit funds to meet Capital w/Leverage requirement.",
-         ac, g_Account.equity, ac, g_CapWithLev));
-      return;
-   }
-
-   int lv = GetNearestGridLevel(g_Price.bid);
-   if(isBuyBtn)  QueueSplitOrders(lv, true,  true);
-   if(isSellBtn) QueueSplitOrders(lv, false, true);
-
+   // v2.0.6: move ARM check before early-return so trigger buttons are reachable
    bool isTrigBuy  = (nm == PFX_MAN+"TGB_ARM");
    bool isTrigSell = (nm == PFX_MAN+"TGS_ARM");
+
+   if(isBuyBtn || isSellBtn)
+   {
+      // BL-11: Manual order — alert เมื่อ INSUFFICIENT
+      if(GetCapitalStatus() == 2)
+      {
+         string ac = AccountCurrency();   // MT4: AccountCurrency()
+         Alert(StringFormat(
+            "Capital INSUF \xB7 BLOCKED\n"
+            "Equity: %s %.2f  <  Required: %s %.2f\n"
+            "Please deposit funds to meet Capital w/Leverage requirement.",
+            ac, g_Account.equity, ac, g_CapWithLev));
+         return;
+      }
+      int lv = GetNearestGridLevel(g_Price.bid);
+      if(isBuyBtn)  QueueSplitOrders(lv, true,  true);
+      if(isSellBtn) QueueSplitOrders(lv, false, true);
+      UpdatePriceTriggerDisplay();
+      UpdateDashboard();
+      return;   // v2.0.6: explicit return — ARM buttons handled separately below
+   }
+
    if(!isTrigBuy && !isTrigSell) return;
 
    if(isTrigBuy)
@@ -978,6 +983,16 @@ void HandleManualPanelClick(string nm)
          string ps = ObjectGetString(0, PFX_MAN+"TGB_E", OBJPROP_TEXT);
          double price = StringToDouble(ps);
          if(price <= 0) { Alert("Invalid BUY Trigger Price -- enter a price > 0"); return; }
+         // v2.0.7: warn if trigger would fire immediately (ask already at/below trigger)
+         if(price >= g_Price.ask)
+         {
+            string warn = StringFormat(
+               "BUY Trigger จะ FIRE ทันทีที่ ARM!\n"
+               "Ask=%.5f <= Trigger=%.5f\n\n"
+               "ต้องการ ARM ต่อหรือไม่?",
+               g_Price.ask, price);
+            if(MessageBox(warn,"Price Trigger Warning",MB_YESNO|MB_ICONWARNING)!=IDYES) return;
+         }
          g_TrigBuyPrice = price;
          g_TrigBuyState = TRIG_ARMED;
          Log("INFO", StringFormat("BUY Trigger ARMED @ %.5f", g_TrigBuyPrice));
@@ -989,7 +1004,9 @@ void HandleManualPanelClick(string nm)
       }
       else if(g_TrigBuyState == TRIG_TRIGGERED)
       {
-         if(MessageBox(StringFormat("Re-arm BUY Trigger @ %.5f?",g_TrigBuyPrice),
+         // v2.0.7: show current ask in re-arm dialog
+         if(MessageBox(StringFormat("Re-arm BUY Trigger @ %.5f?\n(Ask=%.5f)",
+                       g_TrigBuyPrice, g_Price.ask),
                        "Price Trigger",MB_YESNO|MB_ICONQUESTION)==IDYES)
          { g_TrigBuyState = TRIG_ARMED; Log("INFO",StringFormat("BUY Trigger RE-ARMED @ %.5f",g_TrigBuyPrice)); }
       }
@@ -1002,6 +1019,16 @@ void HandleManualPanelClick(string nm)
          string ps = ObjectGetString(0, PFX_MAN+"TGS_E", OBJPROP_TEXT);
          double price = StringToDouble(ps);
          if(price <= 0) { Alert("Invalid SELL Trigger Price -- enter a price > 0"); return; }
+         // v2.0.7: warn if trigger would fire immediately (bid already at/above trigger)
+         if(price <= g_Price.bid)
+         {
+            string warn = StringFormat(
+               "SELL Trigger จะ FIRE ทันทีที่ ARM!\n"
+               "Bid=%.5f >= Trigger=%.5f\n\n"
+               "ต้องการ ARM ต่อหรือไม่?",
+               g_Price.bid, price);
+            if(MessageBox(warn,"Price Trigger Warning",MB_YESNO|MB_ICONWARNING)!=IDYES) return;
+         }
          g_TrigSellPrice = price;
          g_TrigSellState = TRIG_ARMED;
          Log("INFO", StringFormat("SELL Trigger ARMED @ %.5f", g_TrigSellPrice));
@@ -1013,7 +1040,9 @@ void HandleManualPanelClick(string nm)
       }
       else if(g_TrigSellState == TRIG_TRIGGERED)
       {
-         if(MessageBox(StringFormat("Re-arm SELL Trigger @ %.5f?",g_TrigSellPrice),
+         // v2.0.7: show current bid in re-arm dialog
+         if(MessageBox(StringFormat("Re-arm SELL Trigger @ %.5f?\n(Bid=%.5f)",
+                       g_TrigSellPrice, g_Price.bid),
                        "Price Trigger",MB_YESNO|MB_ICONQUESTION)==IDYES)
          { g_TrigSellState = TRIG_ARMED; Log("INFO",StringFormat("SELL Trigger RE-ARMED @ %.5f",g_TrigSellPrice)); }
       }
