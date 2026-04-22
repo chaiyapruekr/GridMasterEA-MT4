@@ -138,11 +138,19 @@ void UpdateTrailStop()
       double tp    = OrderTakeProfit();
       int    tk    = OrderTicket();
 
+      // Layer 3 detection:
+      // - No_TP mode: L3 positions มี tp==0.0 (ไม่มี TP set ที่ broker)
+      // - Zone mode (default): L3 positions มี TP ≈ zone boundary (±1 point tolerance)
       bool isLayer3 = false;
       if(isAdaptive)
       {
-         if(isBuy)  isLayer3 = (MathAbs(tp - g_Cfg.Upper_Zone) < _Point*2);
-         if(!isBuy) isLayer3 = (MathAbs(tp - g_Cfg.Lower_Zone) < _Point*2);
+         if(g_Cfg.Layer3_No_TP)
+            isLayer3 = (tp == 0.0);   // No_TP mode: detect จาก tp=0
+         else
+         {
+            if(isBuy)  isLayer3 = (MathAbs(tp - g_Cfg.Upper_Zone) < _Point*2);
+            if(!isBuy) isLayer3 = (MathAbs(tp - g_Cfg.Lower_Zone) < _Point*2);
+         }
       }
 
       double dist;
@@ -191,10 +199,12 @@ void ApplyPyramidingTP(int filterType)
    for(int i = 0; i < cnt; i++)
    {
       double tp = 0;
-      bool posIsBuy = arr[i].isBuy;
+      bool   posIsBuy = arr[i].isBuy;
+      // reference price สำหรับ safety check: ป้องกัน TP อยู่ภายใน current market
+      double refBuy   = MathMax(arr[i].openPrice, g_Price.ask);
+      double refSell  = MathMin(arr[i].openPrice, g_Price.bid);
       if(posIsBuy)
       {
-         double refBuy = MathMax(arr[i].openPrice, g_Price.ask);
          for(int g = 0; g <= g_Grid.count; g++)
          {
             if(g_Grid.prices[g] > refBuy && !usedGrid[g])
@@ -205,7 +215,6 @@ void ApplyPyramidingTP(int filterType)
       }
       else
       {
-         double refSell = MathMin(arr[i].openPrice, g_Price.bid);
          for(int g = g_Grid.count; g >= 0; g--)
          {
             if(g_Grid.prices[g] < refSell && !usedGrid[g])
@@ -215,23 +224,13 @@ void ApplyPyramidingTP(int filterType)
          { tp = g_Cfg.Lower_Zone - nextExtSell * g_Grid.step; nextExtSell++; }
       }
       tp = NormalizeDouble(tp, _Digits);
-
-      // Safety: TP ต้องอยู่ถูกทิศทางเสมอ
-      // Edge case: Manual order ถูกเปิดตอนราคาอยู่นอก Zone (ต่ำกว่า Lower_Zone หรือสูงกว่า Upper_Zone)
-      // ทำให้ grid search หา TP ไม่ได้ และ fallback อาจยัง > openPrice
-      if(posIsBuy && tp > 0.0 && tp <= arr[i].openPrice)
-      {
-         Log("WARN", StringFormat("PyTP BUY #%d: tp=%.5f <= open=%.5f (price outside zone?) — adjust +1grid",
-             arr[i].ticket, tp, arr[i].openPrice));
-         tp = NormalizeDouble(arr[i].openPrice + g_Grid.step, _Digits);
-      }
-      if(!posIsBuy && tp > 0.0 && tp >= arr[i].openPrice)
-      {
-         Log("WARN", StringFormat("PyTP SELL #%d: tp=%.5f >= open=%.5f (price outside zone?) — adjust -1grid",
-             arr[i].ticket, tp, arr[i].openPrice));
-         tp = NormalizeDouble(arr[i].openPrice - g_Grid.step, _Digits);
-      }
-
+      // Safety: TP ต้องอยู่ถูกทิศทางเสมอ และต้องเกิน current market price ด้วย
+      if( posIsBuy && tp > 0.0 && tp <= refBuy)
+      { Log("WARN", StringFormat("PyTP BUY  #%d: tp=%.5f <= ref=%.5f — adjust +1grid", arr[i].ticket, tp, refBuy));
+        tp = NormalizeDouble(refBuy + g_Grid.step, _Digits); }
+      if(!posIsBuy && tp > 0.0 && tp >= refSell)
+      { Log("WARN", StringFormat("PyTP SELL #%d: tp=%.5f >= ref=%.5f — adjust -1grid", arr[i].ticket, tp, refSell));
+        tp = NormalizeDouble(refSell - g_Grid.step, _Digits); }
       QueueItem q = BuildModifyItem(arr[i].ticket, arr[i].sl, tp);
       QueueAdd(q);
    }
@@ -256,24 +255,41 @@ void ApplyAdaptiveTP(int filterType)
    double l2t=GetAdaptL2Target();
    for(int i=0;i<cnt;i++)
    {
+      // Bug fix: ใช้ arr[i].isBuy ของแต่ละ position — ไม่ใช้ isBuy ของ arr[0]
+      bool posIsBuy = arr[i].isBuy;
       double tp=0;
-      if(i<l3) tp=isBuy?g_Cfg.Upper_Zone:g_Cfg.Lower_Zone;
+      if(i<l3)
+      {
+         // Layer 3: Run Trend mode → tp=0 (ไม่ set TP ให้ broker) ใช้ Trail SL อย่างเดียว
+         if(g_Cfg.Layer3_No_TP) tp=0.0;
+         else                   tp=posIsBuy?g_Cfg.Upper_Zone:g_Cfg.Lower_Zone;
+      }
       else if(i<l3+l2)
       {
          if(l2t>0)
          {
-            bool valid=isBuy?l2t>g_Price.bid:l2t<g_Price.bid;
-            tp=valid?l2t:(isBuy?arr[i].openPrice+l2g*g_Grid.step
-                               :arr[i].openPrice-l2g*g_Grid.step);
+            bool valid=posIsBuy?l2t>g_Price.bid:l2t<g_Price.bid;
+            tp=valid?l2t:(posIsBuy?arr[i].openPrice+l2g*g_Grid.step
+                                  :arr[i].openPrice-l2g*g_Grid.step);
          }
-         else tp=isBuy?arr[i].openPrice+l2g*g_Grid.step
-                      :arr[i].openPrice-l2g*g_Grid.step;
+         else tp=posIsBuy?arr[i].openPrice+l2g*g_Grid.step
+                         :arr[i].openPrice-l2g*g_Grid.step;
       }
-      else tp=isBuy?arr[i].openPrice+l1g*g_Grid.step
-                   :arr[i].openPrice-l1g*g_Grid.step;
-      if(isBuy  && tp>g_Cfg.Upper_Zone) tp=g_Cfg.Upper_Zone;
-      if(!isBuy && tp<g_Cfg.Lower_Zone) tp=g_Cfg.Lower_Zone;
+      else tp=posIsBuy?arr[i].openPrice+l1g*g_Grid.step
+                      :arr[i].openPrice-l1g*g_Grid.step;
+      // cap checks: tp>0 guard ป้องกัน tp=0 (L3 No_TP) ถูก overwrite ด้วย zone boundary
+      if( posIsBuy && tp>0.0 && tp>g_Cfg.Upper_Zone) tp=g_Cfg.Upper_Zone;
+      if(!posIsBuy && tp>0.0 && tp<g_Cfg.Lower_Zone) tp=g_Cfg.Lower_Zone;
       tp=NormalizeDouble(tp,_Digits);
+      // Safety: TP ต้องอยู่ถูกทิศทางเสมอ และต้องอยู่เกิน current market price ด้วย
+      double refBuy  = MathMax(arr[i].openPrice, g_Price.ask);
+      double refSell = MathMin(arr[i].openPrice, g_Price.bid);
+      if( posIsBuy && tp>0.0 && tp<=refBuy)
+      { Log("WARN",StringFormat("AdTP BUY  #%d: tp=%.5f <= ref=%.5f — adjust +1grid",arr[i].ticket,tp,refBuy));
+        tp=NormalizeDouble(refBuy+g_Grid.step,_Digits); }
+      if(!posIsBuy && tp>0.0 && tp>=refSell)
+      { Log("WARN",StringFormat("AdTP SELL #%d: tp=%.5f >= ref=%.5f — adjust -1grid",arr[i].ticket,tp,refSell));
+        tp=NormalizeDouble(refSell-g_Grid.step,_Digits); }
       QueueItem q=BuildModifyItem(arr[i].ticket,arr[i].sl,tp); QueueAdd(q);
    }
 }
@@ -282,7 +298,18 @@ void ApplySinglePriceTP(int filterType, double tpPrice)
 {
    SortedPos arr[]; int cnt=CollectPositions(arr,filterType);
    for(int i=0;i<cnt;i++)
-   { QueueItem q=BuildModifyItem(arr[i].ticket,arr[i].sl,NormalizeDouble(tpPrice,_Digits)); QueueAdd(q); }
+   {
+      double tp=NormalizeDouble(tpPrice,_Digits);
+      // Safety: TP ต้องอยู่ถูกทิศทางเสมอ และต้องอยู่เกิน current market price ด้วย
+      // ถ้าผู้ใช้ตั้ง price ผิดทิศ หรือราคาวิ่งผ่านไปแล้ว → skip + log
+      double refBuyS  = MathMax(arr[i].openPrice, g_Price.ask);
+      double refSellS = MathMin(arr[i].openPrice, g_Price.bid);
+      if( arr[i].isBuy && tp>0.0 && tp<=refBuyS)
+      { Log("WARN",StringFormat("SINGLE_P BUY  #%d: tpPrice=%.5f <= ref=%.5f — skipped",arr[i].ticket,tp,refBuyS)); continue; }
+      if(!arr[i].isBuy && tp>0.0 && tp>=refSellS)
+      { Log("WARN",StringFormat("SINGLE_P SELL #%d: tpPrice=%.5f >= ref=%.5f — skipped",arr[i].ticket,tp,refSellS)); continue; }
+      QueueItem q=BuildModifyItem(arr[i].ticket,arr[i].sl,tp); QueueAdd(q);
+   }
 }
 
 void ApplySinglePipsTP(int filterType, double pips)
@@ -292,6 +319,13 @@ void ApplySinglePipsTP(int filterType, double pips)
    for(int i=0;i<cnt;i++)
    {
       double tp=NormalizeDouble(arr[i].isBuy?arr[i].openPrice+dist:arr[i].openPrice-dist,_Digits);
+      // Safety: TP ต้องอยู่ถูกทิศทาง และเกิน current market price — ป้องกัน immediate execution
+      double refBuy  = MathMax(arr[i].openPrice, g_Price.ask);
+      double refSell = MathMin(arr[i].openPrice, g_Price.bid);
+      if( arr[i].isBuy  && tp>0.0 && tp<=refBuy)
+      { Log("WARN",StringFormat("SINGLE_PIPS BUY  #%d: tp=%.5f <= ref=%.5f — skipped",arr[i].ticket,tp,refBuy)); continue; }
+      if(!arr[i].isBuy && tp>0.0 && tp>=refSell)
+      { Log("WARN",StringFormat("SINGLE_PIPS SELL #%d: tp=%.5f >= ref=%.5f — skipped",arr[i].ticket,tp,refSell)); continue; }
       QueueItem q=BuildModifyItem(arr[i].ticket,arr[i].sl,tp); QueueAdd(q);
    }
 }
@@ -302,10 +336,12 @@ void ApplyCustomSLPrice(int filterType, double slPrice)
    for(int i=0;i<cnt;i++)
    {
       double sl=NormalizeDouble(slPrice,_Digits);
-      if(arr[i].isBuy  && sl>=arr[i].openPrice)
-      { Log("WARN",StringFormat("#%d SL(%.5f)>=Open(%.5f) BUY skipped",arr[i].ticket,sl,arr[i].openPrice)); continue; }
-      if(!arr[i].isBuy && sl<=arr[i].openPrice)
-      { Log("WARN",StringFormat("#%d SL(%.5f)<=Open(%.5f) SELL skipped",arr[i].ticket,sl,arr[i].openPrice)); continue; }
+      // ตรวจสอบ SL ไม่เกิน current market price (profit-lock allowed)
+      // BUY: SL < bid / SELL: SL > ask
+      if(arr[i].isBuy  && sl>=g_Price.bid)
+      { Log("WARN",StringFormat("#%d SL(%.5f)>=Bid(%.5f) BUY — skipped",arr[i].ticket,sl,g_Price.bid)); continue; }
+      if(!arr[i].isBuy && sl<=g_Price.ask)
+      { Log("WARN",StringFormat("#%d SL(%.5f)<=Ask(%.5f) SELL — skipped",arr[i].ticket,sl,g_Price.ask)); continue; }
       QueueItem q=BuildModifyItem(arr[i].ticket,sl,arr[i].tp); QueueAdd(q);
    }
 }

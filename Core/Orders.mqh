@@ -219,8 +219,36 @@ void QueueSplitOrders(int gridLevel, bool isBuy, bool isManual=false)
    if(!PreOrderChecks(gridLevel, isBuy, isManual)) return;
 
    double actualLot = 0;
-   int    splits    = CalcSplitCount(gridLevel, isBuy, actualLot);
-   if(splits < 1) return;
+   int    splits;
+   if(isManual)
+   {
+      // Manual order ใช้ Split logic เหมือน Auto — เปิด N×MinLot ตาม lotNeeded
+      splits = CalcSplitCount(gridLevel, isBuy, actualLot);
+      if(splits < 1)
+      {
+         // curLots >= required — แจ้ง user และถาม confirm (Option B)
+         double curLots   = isBuy ? g_Orders.buyLots : g_Orders.sellLots;
+         double remaining = isBuy ? (g_Grid.count - gridLevel) : (double)gridLevel;
+         double required  = NormalizeDouble(g_Cfg.Min_Lot_Size * remaining, 2);
+         string msg = StringFormat(
+            "Grid %d มี positions เพียงพอตาม strategy แล้ว\n\n"
+            "Current %-6s Lots : %.2f\n"
+            "Required Lots        : %.2f\n\n"
+            "ต้องการเปิดเพิ่ม 1\xD7MinLot (%.2f) หรือไม่?",
+            gridLevel,
+            isBuy ? "BUY" : "SELL",
+            curLots, required, g_Cfg.Min_Lot_Size);
+         if(MessageBox(msg, "Manual Order -- Over Strategy",
+                       MB_YESNO | MB_ICONQUESTION) != IDYES) return;
+         splits    = 1;
+         actualLot = g_Cfg.Min_Lot_Size;
+      }
+   }
+   else
+   {
+      splits = CalcSplitCount(gridLevel, isBuy, actualLot);
+      if(splits < 1) return;
+   }
 
    int ot = isBuy ? OP_BUY : OP_SELL;
    for(int i = 1; i <= splits; i++)

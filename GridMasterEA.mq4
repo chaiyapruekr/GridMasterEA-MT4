@@ -1,9 +1,9 @@
 //+------------------------------------------------------------------+
 //|                                              GridMasterEA.mq4   |
-//|                    GRID MASTER EA v1.5.53 — MQL4 Port           |
+//|                     GRID MASTER EA v2.0.10 — MQL4 Port          |
 //|                       Copyright 2026, Private Trader            |
 //+------------------------------------------------------------------+
-// MQL4 port จาก MQL5 v1.5.53
+// MQL4 port จาก MQL5 v2.0.10 (non-auth features only)
 // หลักการเปลี่ยนแปลง:
 //   - ลบ OnTrade() → ใช้ polling ใน OnTick() แทน (Dip Guard)
 //   - HistoryDealGetXxx → OrderSelect(MODE_HISTORY) ใน Orders.mqh
@@ -15,7 +15,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "Private Trader"
 #property link        ""
-#property version     "1.553"
+#property version     "2.010"
 #property description "GRID MASTER EA — XAUUSD Grid Trading System (MT4)"
 #property strict
 
@@ -70,16 +70,7 @@ int OnInit()
 
    Log("INFO", StringFormat("=== %s v%s initializing (MQL4) ===", EA_NAME, EA_VERSION));
 
-   //--- License check
-   if(IsExpired())
-   {
-      Log("ERROR", StringFormat("EA LICENSE EXPIRED. Contact: %s", EA_CONTACT));
-      Alert(EA_NAME + " LICENSE EXPIRED\nContact: " + EA_CONTACT);
-      return INIT_FAILED;
-   }
-   int daysLeft = DaysUntilExpiry();
-   if(daysLeft <= 30)
-      Log("WARN", StringFormat("License expires in %d days. Contact: %s", daysLeft, EA_CONTACT));
+   //--- License (v2.0.4 MT4 — no online auth, always proceed)
 
    //--- Validate
    if(g_Cfg.MagicNumber < 1)
@@ -108,6 +99,10 @@ int OnInit()
 
    if(MathAbs(g_Cfg.Layer1_Ratio + g_Cfg.Layer2_Ratio + g_Cfg.Layer3_Ratio - 1.0) > 0.001)
    { Log("ERROR","Adaptive TP ratios must sum to 1.0"); return INIT_FAILED; }
+
+   // Warning: Layer3_No_TP ต้องใช้คู่กับ Layer3_Use_TrailSL=true — ไม่งั้น L3 ไม่มีทางออก
+   if(g_Cfg.Layer3_No_TP && !g_Cfg.Layer3_Use_TrailSL)
+      Log("WARN","Layer3_No_TP=true but Layer3_Use_TrailSL=false — L3 positions จะไม่มีทางออก! กรุณาเปิด Layer3_Use_TrailSL");
 
    //--- Init subsystems
    if(!InitSymbolInfo())        return INIT_FAILED;
@@ -255,8 +250,9 @@ void OnTick()
          if(g_EAStatus != EA_STATUS_DD_BREAKER)
          {
             g_EAStatus = EA_STATUS_DD_BREAKER;
-            SendAlert("DD Breaker triggered",
-                      StringFormat("DD=%.2f%% >= %.1f%%", ddNow, g_Cfg.DD_Breaker_Pct));
+            if(g_Cfg.DD_Breaker_Alert)
+               SendAlert("DD Breaker triggered",
+                         StringFormat("DD=%.2f%% >= %.1f%%", ddNow, g_Cfg.DD_Breaker_Pct));
          }
       }
       else if(g_EAStatus == EA_STATUS_DD_BREAKER)
@@ -267,7 +263,7 @@ void OnTick()
    // ── Price Trigger ──────────────────────────────────────────────────
    if(g_TrigBuyState == TRIG_ARMED && g_TrigBuyPrice > 0 && g_Price.ask <= g_TrigBuyPrice)
    {
-      int trigLvB = GetNearestGridLevel(g_Price.bid);
+      int trigLvB = GetNearestGridLevel(g_Price.ask);   // v2.0.7: BUY uses ask
       Log("INFO", StringFormat("Price Trigger BUY fired @ ask=%.5f (armed=%.5f)", g_Price.ask, g_TrigBuyPrice));
       QueueSplitOrders(trigLvB, true, true);
       g_TrigBuyState = TRIG_TRIGGERED;

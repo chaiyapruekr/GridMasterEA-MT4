@@ -5,7 +5,7 @@ MetaTrader 4 Expert Advisor (EA) สำหรับ Grid Trading อัตโน
 **MT4 Port** ของ [GridMasterEA MQL5](https://github.com/chaiyapruekr/GridMasterEA)
 
 - **Primary language**: MQL4 (MetaQuotes Language 4)
-- **EA version**: 1.5.54
+- **EA version**: 2.0.4
 - **Copyright**: 2026, Private Trader — Dev. by YaiMak
 - **MQL5 Primary repo**: https://github.com/chaiyapruekr/GridMasterEA
 
@@ -72,10 +72,25 @@ GridMasterEA-MT4/
 
 ## Build
 
+```bash
+# รัน build script (compile + copy versioned output)
+bash build.sh
 ```
-MetaEditor MT4 → Compile GridMasterEA.mq4
-Copy GridMasterEA.ex4 → MT4 Experts folder
-```
+
+- Version อ่านจาก `Core/Defines.mqh` อัตโนมัติ — ไม่มี version drift
+- Script ตรวจ `#property version` ใน `.mq4` ตรงกับ `EA_VERSION` ก่อน compile
+- Output: `dist/GridMasterEA_MT4_v{VERSION}.ex4`
+- Deploy: copy จาก `dist/` ไปที่ `[MT4 Data Folder]/MQL4/Experts/`
+
+> **ถ้า MetaEditor อยู่ path อื่น** แก้ `METAEDITOR=` ใน `build.sh` บรรทัดแรก
+
+### Version Drift Rule
+แหล่ง version ที่ถูกต้อง = `Core/Defines.mqh` เท่านั้น
+เมื่อ port version ใหม่จาก MQL5 ต้องอัปเดต **2 จุด** ใน MT4:
+1. `#define EA_VERSION "X.X.X"` ใน `Core/Defines.mqh`
+2. `#property version "X.XXX"` ใน `GridMasterEA.mq4` (MQL4 format)
+
+`build.sh` จะตรวจ 2 จุดนี้อัตโนมัติ และ error ถ้าไม่ตรงกัน
 
 ---
 
@@ -98,5 +113,7 @@ fix: MT4 specific issue description
 
 | Version | Changes |
 |---------|---------|
-| 1.5.54 | Fix: SELL TP > openPrice safety check ใน ApplyPyramidingTP; Fix input group ????? (U+2501 → ASCII `=`); Fix Magic bound (ลบ upper bound `> 9999` ใน OnInit); 0 errors, 0 warnings |
+| 2.0.4 | Port non-auth features จาก MQL5 v2.0.4: DD_Breaker_Alert toggle, Manual order silent block fix, ลบ hardcoded expiry; build.sh + version drift guard |
+| 1.5.56 | Sync จาก MQL5 v1.5.55+v1.5.56: TP direction validation ทุก Mode; Layer3 No-TP Run Trend Mode |
+| 1.5.54 | Fix: SELL TP > openPrice safety check ใน ApplyPyramidingTP; Fix input group (U+2501 → ASCII `=`); Fix Magic bound; 0 errors, 0 warnings |
 | 1.5.53 | Initial MT4 port — Full port จาก MQL5 v1.5.53 (13 files); CMQLTrade wrapper; OnTrade polling; MT4 API adaptations |

@@ -8,7 +8,7 @@
 
 //--- EA Identity
 #define EA_NAME          "GRID MASTER EA"
-#define EA_VERSION       "1.5.53"
+#define EA_VERSION       "2.0.10"
 #define EA_SHORT_NAME    "GM"
 #define EA_SYMBOL        _Symbol
 #define EA_AUTHOR        "Dev. by YaiMak"
@@ -75,6 +75,7 @@ struct BrokerSymbolInfo
 #define EA_STATUS_SUSPENDED   1
 #define EA_STATUS_DD_BREAKER  2
 #define EA_STATUS_IDLE        3
+#define EA_STATUS_AUTH_FAIL   4   // (reserved — MT4 stub, no online auth)
 
 //--- Price Trigger States
 enum ENUM_TRIG_STATE
@@ -303,29 +304,8 @@ bool ParseComment(string cmt, int &magic, int &gridLv, int &splitIdx,
    return true;
 }
 
-//--- License
-#define EA_EXPIRE_YEAR   2026
-#define EA_EXPIRE_MONTH  12
-#define EA_EXPIRE_DAY    31
+//--- License (v2.0.4 — MT4: no online auth, hardcoded expiry removed)
 #define EA_CONTACT       "yaimak2511@gmail.com"
-
-bool IsExpired()
-{
-   MqlDateTime now; TimeToStruct(TimeCurrent(), now);
-   if(now.year > EA_EXPIRE_YEAR) return true;
-   if(now.year == EA_EXPIRE_YEAR && now.mon > EA_EXPIRE_MONTH) return true;
-   if(now.year == EA_EXPIRE_YEAR && now.mon == EA_EXPIRE_MONTH && now.day > EA_EXPIRE_DAY) return true;
-   return false;
-}
-
-int DaysUntilExpiry()
-{
-   datetime expiry = StringToTime(StringFormat("%d.%02d.%02d 23:59:59",
-                     EA_EXPIRE_YEAR, EA_EXPIRE_MONTH, EA_EXPIRE_DAY));
-   datetime now    = TimeCurrent();
-   if(now >= expiry) return 0;
-   return (int)((expiry - now) / 86400);
-}
 
 //--- EAConfig struct (forward declared here so InputParams.mqh can use it)
 struct EAConfig
@@ -390,6 +370,7 @@ struct EAConfig
    double Layer2_Target_Price;
    int    Layer2_TP_Grids;
    double Layer3_Ratio;
+   bool   Layer3_No_TP;        // true = ไม่ set TP ให้ L3 — ใช้ Trail SL อย่างเดียว (Run Trend)
    bool   Layer3_Use_TrailSL;
    int    Layer3_Trail_Grids;
    // TP Mode (persisted from .set file)
@@ -401,6 +382,7 @@ struct EAConfig
    // Risk
    bool   Use_DD_Breaker;
    double DD_Breaker_Pct;
+   bool   DD_Breaker_Alert;
    bool   Use_Spread_Filter;
    int    Max_Spread_Points;
    // Dip Guard
